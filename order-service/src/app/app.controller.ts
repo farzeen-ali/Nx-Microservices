@@ -1,12 +1,23 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject, Param } from '@nestjs/common';
 import { AppService } from './app.service';
+import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 
-@Controller()
+@Controller('orders')
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(@Inject('AUTH_SERVICE') private readonly authClient: ClientProxy) {}
 
-  @Get()
-  getData() {
-    return this.appService.getData();
+  @Get(':id')
+  async createOrder(@Param('id') userId: string) {
+    const pattern = { cmd: 'validate_user' };
+    const payload = { userId: Number(userId)};
+    const authResponse = await firstValueFrom(this.authClient.send(pattern, payload));
+    if(authResponse.status === 'success'){
+      return {
+        message: 'Order created successfully!',
+        user: authResponse.user
+      }
+    }
+    return { message: 'Failed to create order', reason: authResponse.message}
   }
 }
